@@ -23,15 +23,16 @@ Monitors hospitalized patients and surfaces those whose latest lab test exceeds 
 ## Installation
 ```bash
 git clone <repo-url>
-cd IchilovTask
+cd IchilovTest
 
 python -m venv venv
-source venv/bin/activate         # Windows: venv\Scripts\activate
+venv\Scripts\activate                # Linux: source venv/bin/activate
 pip install -r backend/requirements.txt
 
-cp backend/.env.example backend/.env   # Windows: copy backend\.env.example backend\.env
+copy .env.example .env                  # Linux: cp .env.example .env
+
 ```
-Edit `backend/.env` and set:
+Edit `.env` and set:
 ```
 DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/ichilov
 ```
