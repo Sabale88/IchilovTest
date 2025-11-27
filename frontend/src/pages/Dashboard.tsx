@@ -263,6 +263,11 @@ const Dashboard: React.FC<DashboardProps> = ({ mode, setMode }) => {
     [allPatients, computeAlertStatus]
   );
 
+  const filteredAlerts = useMemo(
+    () => filteredAndSortedPatients.filter((p) => computeAlertStatus(p)).length,
+    [filteredAndSortedPatients, computeAlertStatus]
+  );
+
   // Department summary - always show all departments from all patients
   const departmentSummary = useMemo(() => {
     const summary: Record<string, { total: number; filtered: number }> = {};
@@ -505,7 +510,7 @@ const Dashboard: React.FC<DashboardProps> = ({ mode, setMode }) => {
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              {filteredAndSortedPatients.length} patients ({totalAlerts} alerts total)
+              {filteredAndSortedPatients.length} patients - {filteredAlerts} alerts shown / {totalAlerts} total
             </Typography>
           </Box>
           
