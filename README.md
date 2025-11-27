@@ -1,209 +1,119 @@
 # Patient Monitoring System
 
-## Prerequisites
+Monitors hospitalized patients and surfaces those whose latest lab test exceeds a configurable hour threshold (default 48 h). Includes a FastAPI backend, PostgreSQL database, and React + Vite frontend.
 
-- **Python 3.10+** (for the FastAPI backend and data loaders)
-- **Node.js 18+ / npm 9+** (for the Vite + React frontend)
-- **PostgreSQL 13+** with a database you can write to (e.g. `ichilov`)
+## Table of Contents
+1. [Prerequisites](#prerequisites)
+2. [Installation](#installation)
+3. [PostgreSQL Setup](#postgresql-setup)
+4. [Loading CSV Data](#loading-csv-data)
+5. [Running the Application](#running-the-application)
+6. [API Endpoints](#api-endpoints)
+7. [Running Tests](#running-tests)
+8. [Project Structure](#project-structure)
+9. [Troubleshooting](#troubleshooting)
+10. [Production Considerations](#production-considerations)
+
+## Prerequisites
+- **Python 3.10+**
+- **Node.js 18+ / npm 9+**
+- **PostgreSQL 13+** (local or remote)
 - **Git**
 
-## Full Setup: Clone ➜ Run
+## Installation
+```bash
+git clone <repo-url>
+cd IchilovTask
 
-1. **Clone the repository**
+python -m venv venv
+source venv/bin/activate         # Windows: venv\Scripts\activate
+pip install -r backend/requirements.txt
 
-   ```bash
-   git clone <repo-url>
-   cd IchilovTask
+cp backend/.env.example backend/.env   # Windows: copy backend\.env.example backend\.env
+```
+Edit `backend/.env` and set:
+```
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/ichilov
+```
+
+## PostgreSQL Setup
+1. Install PostgreSQL (https://www.postgresql.org/download/).
+2. Create a database (e.g. `ichilov`) and user with full privileges:
+   ```sql
+   CREATE DATABASE ichilov;
+   CREATE USER ichilov_user WITH ENCRYPTED PASSWORD 'secret';
+   GRANT ALL PRIVILEGES ON DATABASE ichilov TO ichilov_user;
    ```
+3. Update `DATABASE_URL` accordingly, e.g. `postgresql://ichilov_user:secret@localhost:5432/ichilov`.
 
-2. **Create and activate a Python virtual environment**
-
-   ```bash
-   python -m venv venv
-   # Windows
-   venv\Scripts\activate
-   # macOS/Linux
-   source venv/bin/activate
-   ```
-
-3. **Install backend dependencies**
-
-   ```bash
-   pip install -r backend/requirements.txt
-   ```
-
-4. **Configure environment variables**
-
-   ```bash
-   copy backend\.env.example backend\.env   # Windows
-   # or
-   cp backend/.env.example backend/.env    # macOS/Linux
-   ```
-
-   Update `backend/.env` so `DATABASE_URL` points to your PostgreSQL instance, e.g.
-
-   ```
-   DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/ichilov
-   ```
-
-   Make sure the database exists and the user has read/write permissions.
-
-5. **Seed the database from the CSV files**
-
-   ```bash
-   python -m backend.app.db.bootstrap_db
-   ```
-
-   This creates tables and loads the sample data from `csvFiles/`.
-
-6. **Generate monitoring/detail snapshots**
-
-   ```bash
-   python -m backend.app.db.snapshot_builder
-   ```
-
-   Run this again whenever the underlying data changes to refresh the cached payloads.
-
-7. **Start the backend API (FastAPI + Uvicorn)**
-
-   ```bash
-   uvicorn backend.app.main:app --reload --port 8000
-   ```
-
-   - API root: `http://localhost:8000`
-   - Docs: `http://localhost:8000/docs`
-
-8. **Install frontend dependencies**
-
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-9. **Start the frontend dev server**
-
-   ```bash
-   npm run dev
-   ```
-
-   - Frontend: `http://localhost:3000`
-   - Vite proxy forwards `/api` to `http://localhost:8000`
-
-10. **Use the app**
-
-    Open `http://localhost:3000` in a browser. You should see the dashboard populated with the seeded data.
-
-> **Tip:** Keep the backend and frontend running in separate terminals. When you change CSV data or database contents, rerun the snapshot builder before refreshing the UI.
-
-## Loading Sample CSV Data into the Database
-
-> These steps are already included in the “Full Setup” section above. Use this reference when you only need to reseed data.
-
-1. **Configure environment variables**  
-   - Copy `backend/.env.example` to `backend/.env`.  
-   - Ensure `DATABASE_URL` points to your PostgreSQL instance.
-
-2. **Install backend dependencies (run from project root)**  
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate  # On macOS/Linux: source .venv/bin/activate
-   pip install -r backend/requirements.txt
-   ```
-
-3. **Run the bootstrap script**  
-   ```bash
-   python -m backend.app.db.bootstrap_db
-   ```
-   - Creates all tables and loads the CSVs from `csvFiles/`.  
-   - If the tables already contain data, they are cleared and reseeded automatically.
-
-4. **Create snapshot payloads for the frontend**  
-   ```bash
-   python -m backend.app.db.snapshot_builder
-   ```
-   - Generates monitoring dashboard JSON and per-patient detail JSON.  
-   - Saves payloads in `patient_monitoring_snapshots` and `patient_detail_snapshots`.
-
-5. **Verify**  
-   - Confirm the main tables and snapshot tables contain data.  
-   - Rerun either script anytime after truncating tables to reload or refresh data.
+## Loading CSV Data
+> Run from project root with your virtual environment activated.
+```bash
+python -m backend.app.db.bootstrap_db      # loads csvFiles/ into base tables
+python -m backend.app.db.snapshot_builder  # builds monitoring + detail snapshots
+```
+Re-run the snapshot builder whenever CSV data changes.
 
 ## Running the Application
-
-### Backend API
-
-Start the FastAPI server (from project root):
+### Backend
 ```bash
 uvicorn backend.app.main:app --reload --port 8000
 ```
-- API available at `http://localhost:8000`
-- Interactive API docs at `http://localhost:8000/docs`
+- API root: http://localhost:8000
+- Docs: http://localhost:8000/docs
 
 ### Frontend
-
-1. Install dependencies (from project root):
 ```bash
 cd frontend
 npm install
-```
-
-2. Start development server:
-```bash
 npm run dev
 ```
-- Frontend available at `http://localhost:3000`
-- Vite proxy forwards `/api` requests to backend
+- Frontend: http://localhost:3000 (Vite proxies `/api` → backend)
+
+Keep backend and frontend in separate terminals.
 
 ## API Endpoints
-
-- `GET /api/patients/monitoring` - Get patients requiring attention (query params: `hours_threshold`, `department`, `page`, `limit`)
-- `GET /api/patients/{patient_id}` - Get detailed patient information with lab results and charts
-- `GET /api/health` - Health check endpoint
+- `GET /api/health` – health check.
+- `GET /api/patients/monitoring` – monitoring list; accepts `hours_threshold`, `department`, `page`, `limit`.
+- `GET /api/patients/{patient_id}` – patient detail snapshot.
 
 ## Running Tests
-
-### Prerequisites
-1. **Activate your virtual environment** (required):
-   ```bash
-   # On Windows:
-   venv\Scripts\activate
-   # On Linux/Mac:
-   source venv/bin/activate
-   ```
-
-2. **Install test dependencies** (if not already installed):
-   ```bash
-   pip install -r backend/requirements.txt
-   ```
-
-### Running Tests
-
-**Important**: Always use `python -m pytest` instead of just `pytest` to ensure you're using the correct Python environment.
-
-From the project root:
 ```bash
-# Run all tests
-python -m pytest backend/tests
+source venv/bin/activate              # Windows: venv\Scripts\activate
+pip install -r backend/requirements.txt
 
-# Run only unit tests
-python -m pytest backend/tests/unit/
-
-# Run only integration tests
-python -m pytest backend/tests/integration/
-
-# Run with verbose output
-python -m pytest backend/tests -v
-
-# Run with coverage report
+python -m pytest backend/tests                 # all tests
+python -m pytest backend/tests/unit            # unit only
+python -m pytest backend/tests/integration     # integration only
+python -m pytest backend/tests -v              # verbose
 python -m pytest backend/tests --cov=backend.app --cov-report=html
 ```
+Always prefer `python -m pytest` to ensure the correct interpreter.
 
-### Troubleshooting
+## Project Structure
+```
+backend/         FastAPI app, services, snapshot builders
+frontend/        React + Vite client
+csvFiles/        Source CSV data
+README.md        You are here
+HIGH_LEVEL_DESIGN.md  Architecture overview
+```
 
-**"pytest is not recognized" error:**
-- Make sure your virtual environment is activated
-- Use `python -m pytest` instead of just `pytest`
-- Verify pytest is installed: `pip list | findstr pytest` (Windows) or `pip list | grep pytest` (Linux/Mac)
-- If not installed, run: `pip install -r backend/requirements.txt`
+## Troubleshooting
+- **`pytest` not found**: activate `venv` and run `python -m pytest`.
+- **DB connection errors**: confirm PostgreSQL is running and `DATABASE_URL` is correct.
+- **Empty dashboard**: rerun `python -m backend.app.db.snapshot_builder` to refresh snapshots.
+- **Port conflicts**: change backend `--port` or Vite dev port via env vars.
 
-For more details, see `backend/tests/README.md`.
+## Production Considerations
+1. **Schema changes in source systems**  
+   - ✅ Current state: CSV loader assumes the stable schema shipped with the task.  
+   - 🔜 Next steps: add schema validation, versioning metadata, and a mapping layer (e.g. JSON fields or adapters) so new columns can be ingested without breaking snapshots.
+
+2. **Frequent updates (every few seconds)**  
+   - ✅ Current state: snapshots can be regenerated on demand to refresh the monitoring payloads.  
+   - 🔜 Next steps: automate ingestion via a streaming/queue pipeline, schedule snapshot jobs (Celery/cron), and expose job health metrics so the UI always serves fresh cached data.
+
+3. **Performance at hospital scale**  
+   - ✅ Current state: PostgreSQL stores normalized tables plus precomputed JSONB snapshots; the frontend paginates and filters client-side.  
+   - 🔜 Next steps: introduce incremental snapshot updates, database indexes/partitioning tuned for high volumes, server-side pagination when needed, and frontend optimizations (virtualized tables, memoized filters) for tens of thousands of rows.
